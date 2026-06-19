@@ -20,6 +20,14 @@
   .done { text-align:center; padding:30px 10px; }
   .done .tick { width:74px;height:74px;border-radius:50%;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 14px; animation:pop .4s ease; }
   @keyframes pop { from{transform:scale(.3);opacity:0} to{transform:scale(1);opacity:1} }
+  .react-bar { position:fixed; left:0; right:0; bottom:0; display:flex; justify-content:center; gap:6px; padding:10px 8px;
+    background:rgba(255,255,255,.92); backdrop-filter:blur(8px); border-top:1px solid var(--line); box-shadow:0 -4px 16px rgba(31,45,61,.06); }
+  .react-bar button { background:#f0f4f9; border:none; border-radius:14px; font-size:26px; width:48px; height:48px; padding:0; line-height:1;
+    transition:transform .12s; cursor:pointer; }
+  .react-bar button:hover { transform:scale(1.12); }
+  .react-bar button:active { transform:scale(.9); }
+  .react-hint { position:fixed; left:0; right:0; bottom:70px; text-align:center; font-size:12px; color:var(--muted); }
+  .form-wrap { padding-bottom:96px; }
   .waiting { text-align:center; color:var(--muted); padding:40px 10px; }
   .spin { width:36px;height:36px;border:3px solid var(--line);border-top-color:var(--blue);border-radius:50%;margin:0 auto 16px;animation:rot 1s linear infinite; }
   @keyframes rot { to { transform: rotate(360deg); } }
@@ -66,6 +74,18 @@
   </div>
 </div>
 
+<div class="react-hint">Tap to react on the big screen 👇</div>
+<div class="react-bar" id="reactBar">
+  <button onclick="react('👍')">👍</button>
+  <button onclick="react('❤️')">❤️</button>
+  <button onclick="react('😂')">😂</button>
+  <button onclick="react('🎉')">🎉</button>
+  <button onclick="react('👏')">👏</button>
+  <button onclick="react('🔥')">🔥</button>
+  <button onclick="react('💯')">💯</button>
+  <button onclick="react('🤔')">🤔</button>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -73,6 +93,14 @@
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
+
+let lastReact = 0;
+function react(emoji){
+  const now = Date.now();
+  if(now - lastReact < 400) return;   // light throttle
+  lastReact = now;
+  fetch('/api/react', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({emoji})}).catch(()=>{});
+}
 
 let me = { name: localStorage.getItem('pp_name')||'', staffId: localStorage.getItem('pp_staffId')||'' };
 let activeQ = null;

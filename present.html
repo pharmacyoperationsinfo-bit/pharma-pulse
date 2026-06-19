@@ -6,73 +6,164 @@
 <title>Presenter · Pharma Pulse</title>
 <link rel="stylesheet" href="/style.css" />
 <style>
-  body { background: #fff; }
-  .stage { min-height: 100vh; display: flex; flex-direction: column; }
-  .stage-head {
-    background: linear-gradient(100deg, var(--blue), var(--teal));
-    color: #fff; padding: 22px 40px; display: flex; justify-content: space-between; align-items: center;
+  :root { --stage-bg:#f4f7fa; --stage-ink:#1f2d3d; --stage-muted:#6b7c93; --card:#ffffff; --line:#e3e9f0; }
+  * { box-sizing:border-box; }
+  html,body { height:100%; }
+  body { margin:0; overflow:hidden; background:var(--stage-bg); color:var(--stage-ink);
+    transition:background .6s ease, color .6s ease; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+
+  /* ---------- BOLD THEME ---------- */
+  body.bold { --stage-ink:#ffffff; --stage-muted:#b9c6e6; --card:rgba(255,255,255,.08); --line:rgba(255,255,255,.18); color:#fff; }
+  body.bold::before {
+    content:""; position:fixed; inset:0; z-index:-2;
+    background:linear-gradient(125deg,#0b1437,#16306b,#0e7d72,#5b2a8c,#0b1437);
+    background-size:400% 400%; animation:gradientMove 18s ease infinite;
   }
-  .stage-head .ttl { font-size: 15px; opacity: .9; }
-  .stage-head .live { font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 20px; background: rgba(255,255,255,.2); }
-  .stage-body { flex: 1; display: flex; flex-direction: column; padding: 32px 48px; }
-  .qtext { font-size: clamp(26px, 4vw, 46px); font-weight: 700; color: var(--ink); margin-bottom: 6px; }
-  .count { color: var(--muted); font-size: 18px; margin-bottom: 24px; }
-  .canvas { flex: 1; position: relative; }
-
-  /* multiple choice bars */
-  .bar-row { margin-bottom: 22px; }
-  .bar-top { display: flex; justify-content: space-between; font-size: clamp(16px,1.8vw,24px); font-weight: 600; margin-bottom: 6px; }
-  .bar-track { height: clamp(28px,4vh,46px); background: #eef3f8; border-radius: 10px; overflow: hidden; }
-  .bar-fill { height: 100%; width: 0; border-radius: 10px; background: linear-gradient(90deg, var(--blue), var(--teal)); transition: width .6s cubic-bezier(.2,.8,.2,1); }
-
-  /* word bubbles */
-  .bubbles { position: absolute; inset: 0; overflow: hidden; }
-  .bubble {
-    position: absolute; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    text-align: center; color: #fff; font-weight: 700; padding: 10px; box-shadow: var(--shadow);
-    transition: all .8s cubic-bezier(.2,.8,.2,1); animation: pop .5s ease;
+  body.bold::after {
+    content:""; position:fixed; inset:0; z-index:-1; opacity:.5;
+    background:radial-gradient(circle at 20% 30%, rgba(94,234,212,.25), transparent 40%),
+               radial-gradient(circle at 80% 70%, rgba(129,140,248,.25), transparent 40%);
   }
-  @keyframes pop { from { transform: scale(.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-  @keyframes floaty { 0%,100%{ transform: translateY(0);} 50%{ transform: translateY(-10px);} }
+  @keyframes gradientMove { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
 
-  /* text feed */
-  .feed { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 16px; align-content: start; }
-  .feed-card { background: var(--panel); border:1px solid var(--line); border-left: 4px solid var(--teal); border-radius: 12px; padding: 16px 18px; box-shadow: var(--shadow); animation: pop .4s ease; }
-  .feed-card .who { font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
-  .feed-card .what { font-size: clamp(16px,1.6vw,22px); }
+  /* ---------- LAYOUT ---------- */
+  .stage { height:100vh; display:flex; flex-direction:column; }
+  .stage-head { display:flex; justify-content:space-between; align-items:center; padding:18px 36px; }
+  body:not(.bold) .stage-head { background:linear-gradient(100deg,var(--blue),var(--teal)); color:#fff; box-shadow:var(--shadow); }
+  body.bold .stage-head { background:rgba(255,255,255,.06); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  .head-left .ttl { font-size:17px; font-weight:700; }
+  .head-left .sub { font-size:12px; opacity:.8; }
+  .head-right { display:flex; align-items:center; gap:10px; }
+  .live-badge { font-size:13px; font-weight:800; padding:6px 14px; border-radius:30px; display:flex; align-items:center; gap:8px;
+    background:rgba(255,255,255,.18); }
+  body.bold .live-badge { background:rgba(255,255,255,.14); }
+  .dot { width:9px; height:9px; border-radius:50%; background:#54f0c8; box-shadow:0 0 0 0 rgba(84,240,200,.7); animation:pulse 1.6s infinite; }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(84,240,200,.6)} 70%{box-shadow:0 0 0 12px rgba(84,240,200,0)} 100%{box-shadow:0 0 0 0 rgba(84,240,200,0)} }
+  .ctrl { width:42px; height:42px; border-radius:12px; border:none; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,.2); color:#fff; transition:transform .15s, background .15s; }
+  .ctrl:hover { transform:translateY(-2px); background:rgba(255,255,255,.34); }
 
-  /* rating */
+  .stage-body { flex:1; display:flex; flex-direction:column; padding:30px 52px 24px; position:relative; min-height:0; }
+  .qhead { display:flex; align-items:flex-start; gap:18px; margin-bottom:14px; }
+  .qtext { font-size:clamp(26px,3.6vw,48px); font-weight:800; line-height:1.1; flex:1; }
+  .count-chip { flex:0 0 auto; text-align:center; padding:10px 18px; border-radius:16px; background:var(--card); border:1px solid var(--line);
+    box-shadow:var(--shadow); }
+  .count-chip .n { font-size:clamp(26px,3vw,42px); font-weight:900; line-height:1;
+    background:linear-gradient(90deg,var(--blue),var(--teal)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  body.bold .count-chip .n { background:linear-gradient(90deg,#5eead4,#a5b4fc); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .count-chip .l { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--stage-muted); font-weight:700; }
+  .canvas { flex:1; position:relative; min-height:0; }
+
+  /* ---------- MULTIPLE CHOICE ---------- */
+  .mc-box { display:flex; flex-direction:column; justify-content:center; height:100%; gap:18px; }
+  .bar-row { animation:slideIn .5s cubic-bezier(.2,.8,.2,1); }
+  @keyframes slideIn { from{opacity:0; transform:translateX(-24px)} to{opacity:1; transform:translateX(0)} }
+  .bar-top { display:flex; justify-content:space-between; align-items:center; font-size:clamp(16px,1.9vw,26px); font-weight:700; margin-bottom:7px; }
+  .bar-top .pct { font-variant-numeric:tabular-nums; }
+  .bar-track { height:clamp(30px,5vh,52px); background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .bar-fill { height:100%; width:0; border-radius:14px; transition:width .8s cubic-bezier(.2,.8,.2,1); position:relative; }
+  .bar-fill::after { content:""; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);
+    transform:translateX(-100%); animation:shimmer 2.4s infinite; }
+  @keyframes shimmer { 100%{transform:translateX(100%)} }
+  .bar-row.winner .bar-top .label::before { content:"👑 "; }
+  .bar-row.winner .bar-track { box-shadow:0 0 0 3px rgba(245,196,90,.55), 0 8px 24px rgba(245,196,90,.25); }
+
+  /* ---------- WORD BUBBLES ---------- */
+  .bubbles { position:absolute; inset:0; overflow:hidden; }
+  .bubble { position:absolute; border-radius:50%; display:flex; align-items:center; justify-content:center; text-align:center; color:#fff; font-weight:800;
+    padding:10px; box-shadow:0 10px 30px rgba(0,0,0,.18); animation:pop .55s cubic-bezier(.2,1.4,.4,1); }
+  @keyframes pop { from{transform:scale(.2); opacity:0} to{transform:scale(1); opacity:1} }
+  @keyframes floaty { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+
+  /* ---------- TEXT FEED ---------- */
+  .feed { display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:18px; align-content:start; overflow:hidden; height:100%; }
+  .feed-card { background:var(--card); border:1px solid var(--line); border-left:5px solid var(--teal); border-radius:14px; padding:16px 20px;
+    box-shadow:var(--shadow); animation:cardIn .5s cubic-bezier(.2,1.2,.4,1); backdrop-filter:blur(8px); }
+  @keyframes cardIn { from{opacity:0; transform:translateY(20px) scale(.96)} to{opacity:1; transform:translateY(0) scale(1)} }
+  .feed-card .who { font-size:13px; color:var(--stage-muted); font-weight:700; margin-bottom:5px; }
+  .feed-card .what { font-size:clamp(16px,1.7vw,24px); font-weight:500; }
+
+  /* ---------- RATING ---------- */
   .rating-wrap { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; }
-  .avg { font-size: clamp(60px,12vw,140px); font-weight: 800; background: linear-gradient(90deg,var(--blue),var(--teal)); -webkit-background-clip: text; background-clip: text; color: transparent; line-height: 1; }
-  .avg-sub { color: var(--muted); font-size: 20px; margin-bottom: 30px; }
-  .dist { display:flex; gap: 14px; align-items: flex-end; height: 30vh; }
+  .avg { font-size:clamp(64px,13vw,150px); font-weight:900; line-height:1;
+    background:linear-gradient(90deg,var(--blue),var(--teal)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  body.bold .avg { background:linear-gradient(90deg,#5eead4,#a5b4fc); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .stars { font-size:clamp(28px,4vw,52px); letter-spacing:6px; margin:6px 0; }
+  .avg-sub { color:var(--stage-muted); font-size:clamp(15px,1.6vw,20px); margin-bottom:26px; font-weight:600; }
+  .dist { display:flex; gap:16px; align-items:flex-end; height:30vh; }
   .dist-col { display:flex; flex-direction:column; align-items:center; justify-content:flex-end; }
-  .dist-bar { width: clamp(36px,5vw,64px); background: linear-gradient(180deg,var(--teal),var(--blue)); border-radius: 8px 8px 0 0; transition: height .6s; min-height: 4px; }
-  .dist-num { margin-top: 8px; font-weight: 700; color: var(--muted); }
+  .dist-bar { width:clamp(36px,5vw,66px); border-radius:10px 10px 0 0; transition:height .7s cubic-bezier(.2,.8,.2,1); min-height:5px;
+    background:linear-gradient(180deg,var(--teal),var(--blue)); }
+  body.bold .dist-bar { background:linear-gradient(180deg,#5eead4,#818cf8); }
+  .dist-num { margin-top:9px; font-weight:800; color:var(--stage-muted); font-size:clamp(14px,1.4vw,20px); }
 
-  .idle { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; color: var(--muted); text-align:center; }
-  .idle .big { font-size: 30px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
-  .qr { margin-top: 24px; }
+  /* ---------- IDLE ---------- */
+  .idle { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:8px; }
+  .idle .big { font-size:clamp(28px,3.5vw,44px); font-weight:800; }
+  .idle .small { color:var(--stage-muted); font-size:clamp(15px,1.6vw,20px); }
+  .idle .qr-big { margin-top:22px; background:#fff; padding:16px; border-radius:18px; box-shadow:0 16px 40px rgba(0,0,0,.18); }
+  .idle .qr-big img { display:block; width:200px; height:200px; }
+  .idle .join-url { margin-top:14px; font-size:clamp(18px,2vw,26px); font-weight:800; }
+  .idle .join-url b { background:linear-gradient(90deg,var(--blue),var(--teal)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  body.bold .idle .join-url b { color:#5eead4; -webkit-text-fill-color:#5eead4; }
+
+  /* ---------- PERSISTENT JOIN STRIP ---------- */
+  .join-strip { display:flex; align-items:center; gap:14px; padding:10px 14px; border-radius:16px; background:var(--card); border:1px solid var(--line);
+    box-shadow:var(--shadow); backdrop-filter:blur(8px); margin-top:14px; align-self:flex-start; }
+  .join-strip img { width:62px; height:62px; border-radius:8px; background:#fff; }
+  .join-strip .jt { font-size:13px; color:var(--stage-muted); font-weight:700; }
+  .join-strip .ju { font-size:clamp(15px,1.5vw,20px); font-weight:800; }
+  .join-strip.hide { display:none; }
+
+  /* ---------- OVERLAYS ---------- */
+  #confetti { position:fixed; inset:0; pointer-events:none; z-index:40; }
+  #emojiLayer { position:fixed; inset:0; pointer-events:none; z-index:41; overflow:hidden; }
+  .float-emoji { position:absolute; bottom:-60px; font-size:46px; animation:floatUp 4s ease-out forwards; }
+  @keyframes floatUp {
+    0%{ transform:translateY(0) scale(.6); opacity:0; }
+    15%{ opacity:1; transform:translateY(-40px) scale(1.1); }
+    100%{ transform:translateY(-78vh) scale(1); opacity:0; }
+  }
+  .hide { display:none !important; }
 </style>
 </head>
-<body>
+<body class="">
+<canvas id="confetti"></canvas>
+<div id="emojiLayer"></div>
+
 <div class="stage">
   <div class="stage-head">
-    <div><div class="ttl" id="ttl">Operations Pharmacy</div><div style="font-size:13px;opacity:.75">Pharma Pulse · live</div></div>
-    <div class="live" id="liveBadge">Waiting…</div>
+    <div class="head-left">
+      <div class="ttl" id="ttl">Operations Pharmacy</div>
+      <div class="sub">Pharma Pulse · live training</div>
+    </div>
+    <div class="head-right">
+      <div class="live-badge"><span class="dot"></span><span id="liveText">Waiting…</span></div>
+      <button class="ctrl" id="themeBtn" title="Toggle theme (T)" onclick="toggleTheme()">🎨</button>
+      <button class="ctrl" id="fsBtn" title="Fullscreen (F)" onclick="toggleFs()">⛶</button>
+    </div>
   </div>
+
   <div class="stage-body">
     <div id="active" class="hide">
-      <div class="qtext" id="qtext"></div>
-      <div class="count" id="count"></div>
+      <div class="qhead">
+        <div class="qtext" id="qtext"></div>
+        <div class="count-chip"><div class="n" id="count">0</div><div class="l">responses</div></div>
+      </div>
     </div>
+
     <div class="canvas" id="canvas">
       <div class="idle" id="idle">
-        <div class="big">Ready when you are</div>
-        <div>The presenter will launch a question from the admin dashboard.</div>
-        <div class="qr"><img id="idleQr" alt="Scan to join" style="border-radius:12px"/></div>
-        <div style="margin-top:10px">Scan to join, or open <b id="formUrl"></b></div>
+        <div class="big">Ready when you are 🎯</div>
+        <div class="small">Launch a question from the admin dashboard.</div>
+        <div class="qr-big"><img id="idleQr" alt="Scan to join" /></div>
+        <div class="join-url">Join at <b id="idleUrl"></b></div>
       </div>
+    </div>
+
+    <div class="join-strip hide" id="joinStrip">
+      <img id="stripQr" alt="Join QR" />
+      <div><div class="jt">📱 Scan to join &amp; react</div><div class="ju" id="stripUrl"></div></div>
     </div>
   </div>
 </div>
@@ -82,121 +173,175 @@
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const PALETTE = ['#1a6dc4','#16a394','#6b4cc0','#c08a2c','#d4584b','#1b8a8f','#3a7bd5','#2aa17a'];
-let current = null;
+const BOLD_PALETTE = ['#5eead4','#818cf8','#f0abfc','#fcd34d','#fb7185','#67e8f9','#a78bfa','#34d399'];
+let current = null, prevTotal = 0, displayCount = 0;
 
+/* ----- theme ----- */
+function applyTheme(t){ document.body.classList.toggle('bold', t==='bold'); $('#themeBtn').textContent = t==='bold' ? '☀️' : '🎨'; }
+function toggleTheme(){ const t = document.body.classList.contains('bold') ? 'pro' : 'bold'; localStorage.setItem('pp_theme', t); applyTheme(t); if(current) load(); }
+applyTheme(localStorage.getItem('pp_theme') || 'pro');
+
+/* ----- fullscreen ----- */
+function toggleFs(){ if(!document.fullscreenElement){ document.documentElement.requestFullscreen?.(); } else { document.exitFullscreen?.(); } }
+document.addEventListener('keydown', e => {
+  if(e.key==='t'||e.key==='T') toggleTheme();
+  if(e.key==='f'||e.key==='F') toggleFs();
+});
+
+/* ----- join links / QR ----- */
 const formUrl = location.origin + '/form';
-$('#formUrl').textContent = formUrl;
-$('#idleQr').src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(formUrl);
+const prettyUrl = (location.host + '/form');
+const qrSrc = sz => 'https://api.qrserver.com/v1/create-qr-code/?size='+sz+'x'+sz+'&margin=0&data=' + encodeURIComponent(formUrl);
+$('#idleQr').src = qrSrc(200); $('#stripQr').src = qrSrc(120);
+$('#idleUrl').textContent = prettyUrl; $('#stripUrl').textContent = prettyUrl;
+
+function pal(i){ return (document.body.classList.contains('bold') ? BOLD_PALETTE : PALETTE)[i % 8]; }
 
 async function load(){
-  const d = await fetch('/api/present').then(r=>r.json());
+  let d;
+  try { d = await fetch('/api/present').then(r=>r.json()); } catch(e){ return; }
   $('#ttl').textContent = d.title;
-  if (!d.question){ showIdle(); return; }
+  if(!d.question){ showIdle(); return; }
   $('#idle').classList.add('hide');
   $('#active').classList.remove('hide');
-  $('#liveBadge').textContent = d.accepting ? '● LIVE — answers open' : '● LIVE — paused';
+  $('#joinStrip').classList.remove('hide');
+  $('#liveText').textContent = d.accepting ? 'LIVE · answers open' : 'LIVE · paused';
   $('#qtext').textContent = d.question.text;
-  const newQ = !current || current.id !== d.question.id;
+  const fresh = !current || current.id !== d.question.id;
   current = d.question;
-  render(d.question, d.results, newQ);
+  if(fresh){ prevTotal = 0; displayCount = 0; }
+  render(d.question, d.results, fresh);
 }
 
 function showIdle(){
   current = null;
   $('#active').classList.add('hide');
+  $('#joinStrip').classList.add('hide');
   $('#idle').classList.remove('hide');
-  $('#liveBadge').textContent = 'Waiting…';
+  $('#liveText').textContent = 'Waiting…';
   $('#canvas').querySelectorAll('.dynamic').forEach(e=>e.remove());
 }
 
-function setCount(n){ $('#count').textContent = n + (n===1?' response':' responses'); }
+/* ----- animated counter ----- */
+function animateCount(to){
+  const el = $('#count'); const from = displayCount; const start = performance.now(); const dur = 600;
+  function step(now){ const p = Math.min(1,(now-start)/dur); const v = Math.round(from+(to-from)*p); el.textContent = v;
+    if(p<1) requestAnimationFrame(step); else displayCount = to; }
+  requestAnimationFrame(step);
+}
 
 function render(q, res, fresh){
-  setCount(res.total || 0);
-  const canvas = $('#canvas');
-  if (fresh) canvas.querySelectorAll('.dynamic').forEach(e=>e.remove());
-
-  if (q.type === 'mc') renderMC(canvas, q, res, fresh);
-  else if (q.type === 'words') renderWords(canvas, res, fresh);
-  else if (q.type === 'text') renderText(canvas, res, fresh);
-  else if (q.type === 'rating') renderRating(canvas, res, fresh);
-}
-
-function ensure(canvas, cls, tag='div'){
-  let el = canvas.querySelector('.'+cls);
-  if (!el){ el = document.createElement(tag); el.className = cls + ' dynamic'; canvas.appendChild(el); }
-  return el;
-}
-
-function renderMC(canvas, q, res, fresh){
-  const box = ensure(canvas, 'mc-box');
   const total = res.total || 0;
-  const max = Math.max(1, ...res.options.map(o=>o.count));
+  animateCount(total);
+  if(total > prevTotal && !fresh) burstConfetti(8 + (total-prevTotal)*4);
+  prevTotal = total;
+
+  const canvas = $('#canvas');
+  if(fresh) canvas.querySelectorAll('.dynamic').forEach(e=>e.remove());
+  if(q.type==='mc') renderMC(canvas,res);
+  else if(q.type==='words') renderWords(canvas,res);
+  else if(q.type==='text') renderText(canvas,res);
+  else if(q.type==='rating') renderRating(canvas,res);
+}
+
+function ensure(canvas, cls){ let el = canvas.querySelector('.'+cls); if(!el){ el=document.createElement('div'); el.className=cls+' dynamic'; canvas.appendChild(el); } return el; }
+
+function renderMC(canvas,res){
+  const box = ensure(canvas,'mc-box');
+  const total = res.total||0;
+  const max = Math.max(1,...res.options.map(o=>o.count));
+  const topCount = Math.max(...res.options.map(o=>o.count));
   box.innerHTML = res.options.map((o,i)=>{
     const pct = total ? Math.round(o.count/total*100) : 0;
     const w = (o.count/max*100);
-    return `<div class="bar-row">
-      <div class="bar-top"><span>${esc(o.text)}</span><span>${pct}% · ${o.count}</span></div>
-      <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:linear-gradient(90deg,${PALETTE[i%PALETTE.length]},${PALETTE[(i+1)%PALETTE.length]})"></div></div>
+    const win = total>0 && o.count===topCount && o.count>0;
+    return `<div class="bar-row ${win?'winner':''}">
+      <div class="bar-top"><span class="label">${esc(o.text)}</span><span class="pct">${pct}% · ${o.count}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:linear-gradient(90deg,${win?'#f5c45a':pal(i)},${pal(i+1)})"></div></div>
     </div>`;
   }).join('');
 }
 
-function renderWords(canvas, res, fresh){
-  const layer = ensure(canvas, 'bubbles');
-  const words = res.words || [];
-  const max = Math.max(1, ...words.map(w=>w.count));
+function renderWords(canvas,res){
+  const layer = ensure(canvas,'bubbles');
+  const words = (res.words||[]).slice(0,40);
+  const max = Math.max(1,...words.map(w=>w.count));
   const W = layer.clientWidth || canvas.clientWidth;
   const H = layer.clientHeight || canvas.clientHeight || 500;
-  // simple non-overlapping-ish placement
   const placed = [];
-  const top = words.slice(0, 40);
   layer.innerHTML = '';
-  top.forEach((w,i)=>{
-    const size = 60 + (w.count/max) * Math.min(W,H) * 0.28;
+  if(!words.length){ layer.innerHTML='<div class="idle"><div class="small">Waiting for the first answer…</div></div>'; return; }
+  words.forEach((w,i)=>{
+    const size = 70 + (w.count/max)*Math.min(W,H)*0.28;
     let x,y,tries=0,ok=false;
-    while(tries++ < 60){
-      x = Math.random()*(W-size); y = Math.random()*(H-size);
-      ok = placed.every(p => Math.hypot((x+size/2)-(p.x+p.s/2),(y+size/2)-(p.y+p.s/2)) > (size+p.s)/2*0.92);
-      if (ok) break;
-    }
+    while(tries++<60){ x=Math.random()*(W-size); y=Math.random()*(H-size);
+      ok=placed.every(p=>Math.hypot((x+size/2)-(p.x+p.s/2),(y+size/2)-(p.y+p.s/2))>(size+p.s)/2*0.9); if(ok)break; }
     placed.push({x,y,s:size});
-    const b = document.createElement('div');
-    b.className = 'bubble';
-    const fs = Math.max(13, size*0.22);
-    b.style.cssText = `left:${x}px;top:${y}px;width:${size}px;height:${size}px;font-size:${fs}px;background:linear-gradient(135deg,${PALETTE[i%PALETTE.length]},${PALETTE[(i+3)%PALETTE.length]});animation:pop .5s ease, floaty ${3+Math.random()*2}s ease-in-out ${Math.random()}s infinite;`;
-    b.innerHTML = `<div>${esc(w.text)}${w.count>1?`<div style="font-size:.7em;opacity:.85">×${w.count}</div>`:''}</div>`;
+    const b=document.createElement('div'); b.className='bubble';
+    const fs=Math.max(14,size*0.21);
+    b.style.cssText=`left:${x}px;top:${y}px;width:${size}px;height:${size}px;font-size:${fs}px;background:linear-gradient(135deg,${pal(i)},${pal(i+3)});animation:pop .55s cubic-bezier(.2,1.4,.4,1), floaty ${3+Math.random()*2}s ease-in-out ${Math.random()}s infinite;`;
+    b.innerHTML=`<div>${esc(w.text)}${w.count>1?`<div style="font-size:.65em;opacity:.85">×${w.count}</div>`:''}</div>`;
     layer.appendChild(b);
   });
-  if (!top.length) layer.innerHTML = '<div class="idle" style="position:absolute;inset:0"><div>Waiting for the first answer…</div></div>';
 }
 
-function renderText(canvas, res, fresh){
-  const feed = ensure(canvas, 'feed');
-  const entries = res.entries || [];
-  feed.innerHTML = entries.map(e=>`<div class="feed-card"><div class="who">${esc(e.name)}</div><div class="what">${esc(e.value)}</div></div>`).join('')
-    || '<div class="muted">Waiting for the first answer…</div>';
+function renderText(canvas,res){
+  const feed = ensure(canvas,'feed');
+  const entries = res.entries||[];
+  feed.innerHTML = entries.map(e=>`<div class="feed-card"><div class="who">💬 ${esc(e.name)}</div><div class="what">${esc(e.value)}</div></div>`).join('')
+    || '<div class="small" style="color:var(--stage-muted)">Waiting for the first answer…</div>';
 }
 
-function renderRating(canvas, res, fresh){
-  const wrap = ensure(canvas, 'rating-wrap');
-  const max = res.max || 5;
-  const dist = res.distribution || {};
-  const maxCount = Math.max(1, ...Object.values(dist));
-  let cols = '';
-  for (let i=1;i<=max;i++){
-    const h = (dist[i]||0)/maxCount*100;
-    cols += `<div class="dist-col"><div class="muted" style="font-size:14px">${dist[i]||0}</div><div class="dist-bar" style="height:${h}%"></div><div class="dist-num">${i}</div></div>`;
-  }
-  wrap.innerHTML = `<div class="avg">${res.average||0}</div><div class="avg-sub">average of ${res.total||0} rating${res.total===1?'':'s'} (out of ${max})</div><div class="dist">${cols}</div>`;
+function renderRating(canvas,res){
+  const wrap = ensure(canvas,'rating-wrap');
+  const max = res.max||5; const dist = res.distribution||{}; const avg = res.average||0;
+  const maxCount = Math.max(1,...Object.values(dist));
+  const full = Math.round(avg);
+  let stars=''; for(let i=1;i<=max;i++) stars += i<=full ? '★' : '☆';
+  let cols=''; for(let i=1;i<=max;i++){ const h=(dist[i]||0)/maxCount*100;
+    cols += `<div class="dist-col"><div class="dist-num">${dist[i]||0}</div><div class="dist-bar" style="height:${h}%"></div><div class="dist-num">${i}</div></div>`; }
+  wrap.innerHTML = `<div class="avg">${avg}</div><div class="stars" style="color:#f5c45a">${stars}</div>
+    <div class="avg-sub">average of ${res.total||0} rating${res.total===1?'':'s'} · out of ${max}</div><div class="dist">${cols}</div>`;
 }
 
+/* ----- confetti (self-contained canvas) ----- */
+const cc = $('#confetti'), ctx = cc.getContext('2d'); let parts=[];
+function sizeCanvas(){ cc.width=innerWidth; cc.height=innerHeight; }
+sizeCanvas(); addEventListener('resize',()=>{ sizeCanvas(); if(current) load(); });
+function burstConfetti(n){
+  const colors = document.body.classList.contains('bold') ? BOLD_PALETTE : ['#1a6dc4','#16a394','#f5c45a','#d4584b','#6b4cc0'];
+  for(let i=0;i<n;i++) parts.push({ x:innerWidth/2+(Math.random()-.5)*300, y:innerHeight*0.35,
+    vx:(Math.random()-.5)*9, vy:Math.random()*-9-3, g:0.28, r:Math.random()*7+4,
+    c:colors[i%colors.length], rot:Math.random()*6, vr:(Math.random()-.5)*.4, life:0 });
+  if(!rafOn){ rafOn=true; requestAnimationFrame(tick); }
+}
+let rafOn=false;
+function tick(){
+  ctx.clearRect(0,0,cc.width,cc.height);
+  parts.forEach(p=>{ p.vy+=p.g; p.x+=p.vx; p.y+=p.vy; p.rot+=p.vr; p.life++;
+    ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot); ctx.fillStyle=p.c; ctx.globalAlpha=Math.max(0,1-p.life/90);
+    ctx.fillRect(-p.r/2,-p.r/2,p.r,p.r*1.6); ctx.restore(); });
+  parts = parts.filter(p=>p.life<90 && p.y<cc.height+40);
+  if(parts.length) requestAnimationFrame(tick); else { rafOn=false; ctx.clearRect(0,0,cc.width,cc.height); }
+}
+
+/* ----- floating emoji reactions ----- */
+function floatEmoji(em){
+  const e=document.createElement('div'); e.className='float-emoji'; e.textContent=em;
+  e.style.left=(Math.random()*86+7)+'%';
+  e.style.fontSize=(36+Math.random()*28)+'px';
+  e.style.animationDuration=(3.4+Math.random()*1.6)+'s';
+  $('#emojiLayer').appendChild(e);
+  setTimeout(()=>e.remove(),5200);
+}
+
+/* ----- sockets ----- */
 const socket = io();
 socket.on('results-changed', load);
 socket.on('state-changed', load);
-window.addEventListener('resize', ()=>{ if(current) load(); });
+socket.on('reaction', d => { floatEmoji(d.emoji); });
 load();
-setInterval(load, 8000); // safety refresh
+setInterval(load, 8000);
 </script>
 </body>
 </html>

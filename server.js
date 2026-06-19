@@ -288,6 +288,15 @@ app.post('/api/admin/reset/:qid', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// Live emoji reactions — ephemeral, broadcast only (not stored).
+app.post('/api/react', (req, res) => {
+  const allowed = ['👍', '❤️', '😂', '🎉', '👏', '🔥', '💯', '🤔'];
+  const emoji = req.body && req.body.emoji;
+  if (!allowed.includes(emoji)) return res.status(400).json({ error: 'Bad emoji' });
+  io.emit('reaction', { emoji, ts: Date.now() });
+  res.json({ ok: true });
+});
+
 /* ------------------------------ pages ------------------------------ */
 const page = f => (req, res) => res.sendFile(path.join(__dirname, f));
 app.get('/', page('admin.html'));
