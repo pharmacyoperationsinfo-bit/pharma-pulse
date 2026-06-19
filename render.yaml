@@ -1,0 +1,13 @@
+# Render Blueprint — auto-configures the web service.
+# In Render you can use "New → Blueprint" and point it at your repo,
+# or just use "New → Web Service" (Render auto-detects these same settings).
+services:
+  - type: web
+    name: pharma-pulse
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: ADMIN_PASS
+        sync: false   # Render will prompt you to type a password at deploy time

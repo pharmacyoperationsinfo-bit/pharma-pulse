@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin · Pharma Pulse</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login" class="panel center-card">
+  <h2>Admin sign in</h2>
+  <p class="muted">Enter the admin password to manage training questions.</p>
+  <label>Password</label>
+  <input id="pass" type="password" placeholder="Admin password" />
+  <div style="margin-top:14px"><button onclick="login()">Sign in</button></div>
+  <p id="loginErr" class="muted" style="color:var(--danger)"></p>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="hide">
+  <div class="topbar"><div class="wrap">
+    <div><h1>Pharma Pulse — Admin</h1><div class="sub" id="sessTitle"></div></div>
+    <button class="ghost sm" onclick="logout()">Sign out</button>
+  </div></div>
+
+  <div class="wrap">
+    <div class="tabs">
+      <button data-tab="questions" class="active" onclick="tab('questions')">Questions & Live Control</button>
+      <button data-tab="staff" onclick="tab('staff')">Staff</button>
+      <button data-tab="links" onclick="tab('links')">Share Links</button>
+      <button data-tab="settings" onclick="tab('settings')">Settings</button>
+    </div>
+
+    <!-- QUESTIONS -->
+    <section id="tab-questions">
+      <div class="panel">
+        <h2>Add a question</h2>
+        <label>Question type</label>
+        <select id="qtype" onchange="onTypeChange()">
+          <option value="mc">Multiple choice (bar chart)</option>
+          <option value="words">Word cloud / bubbles</option>
+          <option value="text">Open text feed</option>
+          <option value="rating">Rating / scale</option>
+        </select>
+        <label>Question text</label>
+        <textarea id="qtext" placeholder="e.g. Which step do you find hardest in the dispensing SOP?"></textarea>
+
+        <div id="mcWrap">
+          <label>Answer options (one per line, min 2)</label>
+          <textarea id="qopts" placeholder="Verification&#10;Labelling&#10;Counselling&#10;Documentation"></textarea>
+        </div>
+        <div id="ratingWrap" class="hide">
+          <label>Scale maximum (2–10)</label>
+          <input id="qscale" type="number" min="2" max="10" value="5" />
+        </div>
+
+        <div style="margin-top:14px"><button onclick="addQuestion()">Add question</button></div>
+      </div>
+
+      <div class="panel">
+        <h2>Your questions</h2>
+        <p class="muted">Click <b>Go live</b> to push a question to the staff form and presenter screen. Only one can be live at a time.</p>
+        <div id="qlist"></div>
+      </div>
+    </section>
+
+    <!-- STAFF -->
+    <section id="tab-staff" class="hide">
+      <div class="panel">
+        <h2>Add staff</h2>
+        <p class="muted">Optional. Staff names appear as a dropdown on the form so people don't have to type. The form also allows typing a name directly.</p>
+        <div class="row">
+          <input id="staffName" placeholder="Staff member name" onkeydown="if(event.key==='Enter')addStaff()" />
+          <button class="teal" style="flex:0 0 auto" onclick="addStaff()">Add</button>
+        </div>
+        <div id="stafflist" class="chiplist"></div>
+      </div>
+    </section>
+
+    <!-- LINKS -->
+    <section id="tab-links" class="hide">
+      <div class="panel">
+        <h2>Presenter screen</h2>
+        <p class="muted">Open this on the projector / shared screen. It shows answers live with a clean theme.</p>
+        <div class="linkbox"><span id="linkPresent"></span><button class="ghost sm" onclick="copy('linkPresent')">Copy</button></div>
+        <div style="margin-top:10px"><button onclick="window.open('/present','_blank')">Open presenter screen ↗</button></div>
+      </div>
+      <div class="panel">
+        <h2>Staff answer form</h2>
+        <p class="muted">Share this link with staff (on their phones). They answer whichever question is live.</p>
+        <div class="linkbox"><span id="linkForm"></span><button class="ghost sm" onclick="copy('linkForm')">Copy</button></div>
+        <div id="qrWrap" style="margin-top:14px"></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="tab-settings" class="hide">
+      <div class="panel">
+        <h2>Session title</h2>
+        <p class="muted">Shown at the top of the presenter screen and form.</p>
+        <div class="row">
+          <input id="titleInput" />
+          <button style="flex:0 0 auto" onclick="saveTitle()">Save</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>About the admin password</h2>
+        <p class="muted">The password is set on the server via the <code>ADMIN_PASS</code> environment variable. Change it where you deploy. Default is <code>pharmacy123</code>.</p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+let PASS = sessionStorage.getItem('pp_pass') || '';
+let DATA = null;
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
+
+async function api(method, url, body){
+  const r = await fetch(url, {
+    method,
+    headers: { 'Content-Type':'application/json', 'x-admin-pass': PASS },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (r.status === 401) { logout(); throw new Error('unauth'); }
+  if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error || 'Error'); }
+  return r.json();
+}
+
+async function login(){
+  const pass = $('#pass').value;
+  try {
+    const r = await fetch('/api/admin/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({pass})});
+    if (!r.ok) { $('#loginErr').textContent = 'Wrong password.'; return; }
+    PASS = pass; sessionStorage.setItem('pp_pass', pass);
+    showApp();
+  } catch(e){ $('#loginErr').textContent = 'Could not connect.'; }
+}
+function logout(){ sessionStorage.removeItem('pp_pass'); PASS=''; $('#app').classList.add('hide'); $('#login').classList.remove('hide'); }
+
+async function showApp(){
+  $('#login').classList.add('hide'); $('#app').classList.remove('hide');
+  const base = location.origin;
+  $('#linkPresent').textContent = base + '/present';
+  $('#linkForm').textContent = base + '/form';
+  $('#qrWrap').innerHTML = '<img alt="QR code for staff form" style="border-radius:10px;border:1px solid var(--line)" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='+encodeURIComponent(base+'/form')+'" />';
+  await refresh();
+}
+
+async function refresh(){
+  DATA = await api('GET','/api/admin/data');
+  $('#sessTitle').textContent = DATA.title;
+  $('#titleInput').value = DATA.title;
+  renderQuestions(); renderStaff();
+}
+
+function tab(name){
+  document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+  ['questions','staff','links','settings'].forEach(t=>$('#tab-'+t).classList.toggle('hide', t!==name));
+}
+
+function onTypeChange(){
+  const t = $('#qtype').value;
+  $('#mcWrap').classList.toggle('hide', t!=='mc');
+  $('#ratingWrap').classList.toggle('hide', t!=='rating');
+}
+
+async function addQuestion(){
+  const type = $('#qtype').value;
+  const text = $('#qtext').value.trim();
+  if (!text) return toast('Enter the question text');
+  const body = { type, text };
+  if (type==='mc') body.options = $('#qopts').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  if (type==='rating') body.scaleMax = parseInt($('#qscale').value,10)||5;
+  try { await api('POST','/api/admin/questions', body); $('#qtext').value=''; $('#qopts').value=''; await refresh(); toast('Question added'); }
+  catch(e){ toast(e.message); }
+}
+
+const TYPE_LABEL = { mc:'Multiple choice', words:'Word cloud', text:'Open text', rating:'Rating' };
+
+function renderQuestions(){
+  const el = $('#qlist');
+  if (!DATA.questions.length){ el.innerHTML='<p class="muted">No questions yet. Add one above.</p>'; return; }
+  el.innerHTML = DATA.questions.map(q => {
+    const live = DATA.state.activeQuestionId === q.id;
+    const accepting = live && DATA.state.accepting;
+    const count = DATA.counts[q.id] || 0;
+    let detail = '';
+    if (q.type==='mc') detail = q.options.map(o=>esc(o.text)).join(' · ');
+    if (q.type==='rating') detail = '1 to ' + q.scaleMax;
+    return `<div class="q-item ${live?'live':''}">
+      <div class="q-head">
+        <div>
+          <span class="pill ${q.type}">${TYPE_LABEL[q.type]}</span>
+          ${live?'<span class="pill" style="background:#16a394;color:#fff">● LIVE</span>':''}
+          <div style="margin-top:6px;font-weight:600">${esc(q.text)}</div>
+          ${detail?`<div class="muted" style="font-size:13px;margin-top:2px">${detail}</div>`:''}
+          <div class="muted" style="font-size:12px;margin-top:4px">${count} response${count===1?'':'s'}</div>
+        </div>
+        <button class="danger sm" onclick="delQuestion('${q.id}')">Delete</button>
+      </div>
+      <div class="row" style="margin-top:12px">
+        ${live
+          ? `<button class="ghost sm" style="flex:0 0 auto" onclick="goLive(null,false)">Stop / clear live</button>
+             <button class="${accepting?'danger':'teal'} sm" style="flex:0 0 auto" onclick="setAccepting(${!accepting})">${accepting?'Pause answers':'Open answers'}</button>`
+          : `<button class="teal sm" style="flex:0 0 auto" onclick="goLive('${q.id}',true)">Go live ▶</button>`}
+        <button class="ghost sm" style="flex:0 0 auto" onclick="resetQ('${q.id}')">Clear responses</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function goLive(qid, accepting){
+  await api('POST','/api/admin/control',{ activeQuestionId: qid, accepting: !!accepting });
+  await refresh();
+  toast(qid ? 'Question is now live' : 'Live question cleared');
+}
+async function setAccepting(v){ await api('POST','/api/admin/control',{ accepting: v }); await refresh(); }
+async function resetQ(qid){ if(!confirm('Clear all responses for this question?'))return; await api('POST','/api/admin/reset/'+qid); await refresh(); toast('Responses cleared'); }
+async function delQuestion(qid){ if(!confirm('Delete this question?'))return; await api('DELETE','/api/admin/questions/'+qid); await refresh(); }
+
+function renderStaff(){
+  const el = $('#stafflist');
+  if (!DATA.staff.length){ el.innerHTML='<span class="muted">No staff added yet.</span>'; return; }
+  el.innerHTML = DATA.staff.map(s=>`<span class="chip">${esc(s.name)} <button onclick="delStaff('${s.id}')" title="Remove">×</button></span>`).join('');
+}
+async function addStaff(){ const name=$('#staffName').value.trim(); if(!name)return; try{ await api('POST','/api/admin/staff',{name}); $('#staffName').value=''; await refresh(); }catch(e){ toast(e.message); } }
+async function delStaff(id){ await api('DELETE','/api/admin/staff/'+id); await refresh(); }
+
+async function saveTitle(){ const title=$('#titleInput').value.trim(); if(!title)return; await api('PUT','/api/admin/title',{title}); await refresh(); toast('Saved'); }
+
+function copy(id){ navigator.clipboard.writeText($('#'+id).textContent).then(()=>toast('Copied')); }
+
+// live refresh when responses come in
+const socket = io();
+socket.on('results-changed', ()=>{ if(DATA) refresh(); });
+socket.on('state-changed', ()=>{ if(DATA) refresh(); });
+
+// auto-login if password remembered
+onTypeChange();
+if (PASS) {
+  fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pass:PASS})})
+    .then(r=>{ if(r.ok) showApp(); else logout(); });
+}
+$('#pass').addEventListener('keydown', e=>{ if(e.key==='Enter') login(); });
+</script>
+</body>
+</html>

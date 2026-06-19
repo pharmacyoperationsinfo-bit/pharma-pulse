@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Join · Pharma Pulse</title>
+<link rel="stylesheet" href="/style.css" />
+<style>
+  body { background: var(--bg); }
+  .form-wrap { max-width: 480px; margin: 0 auto; padding: 22px 18px 60px; }
+  .brand { text-align:center; padding: 22px 0 10px; }
+  .brand .logo { display:inline-block; background: linear-gradient(100deg,var(--blue),var(--teal)); color:#fff; padding:8px 16px; border-radius:24px; font-weight:700; }
+  .opt-btn { width:100%; text-align:left; background:#fff; color:var(--ink); border:2px solid var(--line); padding:16px; margin-bottom:10px; font-size:16px; border-radius:12px; }
+  .opt-btn.sel { border-color: var(--teal); background:#effaf8; }
+  .opt-btn:hover { border-color: var(--blue); }
+  .scale { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:10px 0; }
+  .scale button { width:54px; height:54px; border-radius:50%; background:#fff; color:var(--ink); border:2px solid var(--line); font-size:18px; font-weight:700; padding:0; }
+  .scale button.sel { background: var(--teal); color:#fff; border-color: var(--teal); }
+  .big-submit { width:100%; padding:16px; font-size:17px; margin-top:14px; }
+  .done { text-align:center; padding:30px 10px; }
+  .done .tick { width:74px;height:74px;border-radius:50%;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 14px; animation:pop .4s ease; }
+  @keyframes pop { from{transform:scale(.3);opacity:0} to{transform:scale(1);opacity:1} }
+  .waiting { text-align:center; color:var(--muted); padding:40px 10px; }
+  .spin { width:36px;height:36px;border:3px solid var(--line);border-top-color:var(--blue);border-radius:50%;margin:0 auto 16px;animation:rot 1s linear infinite; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="brand"><span class="logo" id="brand">Operations Pharmacy</span></div>
+<div class="form-wrap">
+
+  <!-- name -->
+  <div id="nameStep" class="panel">
+    <h2>Your name</h2>
+    <p class="muted">So your trainer knows who answered (optional for anonymous polls).</p>
+    <div id="staffSelectWrap" class="hide">
+      <label>Pick your name</label>
+      <select id="staffSelect"><option value="">— choose —</option></select>
+    </div>
+    <label>Or type your name</label>
+    <input id="nameInput" placeholder="e.g. Sarah" />
+    <button class="big-submit teal" onclick="saveName()">Continue</button>
+  </div>
+
+  <!-- question -->
+  <div id="qStep" class="hide">
+    <div class="panel">
+      <div class="muted" id="hello"></div>
+      <h2 id="qtext" style="margin-top:6px"></h2>
+      <div id="answerArea"></div>
+      <button class="big-submit hide" id="submitBtn" onclick="submit()">Submit answer</button>
+    </div>
+  </div>
+
+  <!-- waiting / done -->
+  <div id="waitStep" class="panel waiting hide">
+    <div class="spin"></div>
+    <div id="waitMsg">Waiting for the trainer to start a question…</div>
+  </div>
+
+  <div id="doneStep" class="panel done hide">
+    <div class="tick">✓</div>
+    <h2>Answer submitted</h2>
+    <p class="muted" id="doneMsg">Look up at the screen to see the results!</p>
+    <button class="ghost" onclick="reAnswer()">Change my answer</button>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
+
+let me = { name: localStorage.getItem('pp_name')||'', staffId: localStorage.getItem('pp_staffId')||'' };
+let activeQ = null;
+let answeredFor = localStorage.getItem('pp_answered')||'';
+let selected = null;
+
+async function init(){
+  const staff = await fetch('/api/staff').then(r=>r.json()).catch(()=>[]);
+  if (staff.length){
+    $('#staffSelectWrap').classList.remove('hide');
+    $('#staffSelect').innerHTML = '<option value="">— choose —</option>' + staff.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+    $('#staffSelect').onchange = e => { const o=e.target.selectedOptions[0]; if(e.target.value){ $('#nameInput').value=o.textContent; } };
+  }
+  if (me.name){ $('#nameInput').value = me.name; }
+  await loadActive();
+}
+
+function saveName(){
+  const sel = $('#staffSelect');
+  me.staffId = sel ? sel.value : '';
+  me.name = $('#nameInput').value.trim();
+  if (!me.name && !me.staffId){ if(!confirm('Continue without a name (anonymous)?')) return; }
+  localStorage.setItem('pp_name', me.name);
+  localStorage.setItem('pp_staffId', me.staffId);
+  $('#nameStep').classList.add('hide');
+  showCurrent();
+}
+
+async function loadActive(){
+  const d = await fetch('/api/active').then(r=>r.json());
+  $('#brand').textContent = d.title;
+  activeQ = d.accepting ? d.question : (d.question ? Object.assign({_paused:true}, d.question) : null);
+  if ($('#nameStep').classList.contains('hide')) showCurrent(d);
+}
+
+function hideSteps(){ ['qStep','waitStep','doneStep'].forEach(s=>$('#'+s).classList.add('hide')); }
+
+async function showCurrent(d){
+  d = d || await fetch('/api/active').then(r=>r.json());
+  $('#brand').textContent = d.title;
+  hideSteps();
+  if (!d.question){ $('#waitStep').classList.remove('hide'); $('#waitMsg').textContent='Waiting for the trainer to start a question…'; return; }
+  if (!d.accepting){ $('#waitStep').classList.remove('hide'); $('#waitMsg').textContent='Answers are paused. Hang tight…'; return; }
+  activeQ = d.question;
+  if (answeredFor === d.question.id){ $('#doneStep').classList.remove('hide'); return; }
+  renderQuestion(d.question);
+}
+
+function renderQuestion(q){
+  selected = null;
+  $('#hello').textContent = me.name ? ('Answering as ' + me.name) : 'Answering anonymously';
+  $('#qtext').textContent = q.text;
+  const area = $('#answerArea');
+  const submit = $('#submitBtn');
+  submit.classList.add('hide');
+  if (q.type === 'mc'){
+    area.innerHTML = q.options.map(o=>`<button class="opt-btn" data-v="${o.id}" onclick="pick('${o.id}',this)">${esc(o.text)}</button>`).join('');
+  } else if (q.type === 'words'){
+    area.innerHTML = '<label>Type one or two words</label><input id="freeIn" maxlength="40" placeholder="a word…" />';
+    submit.classList.remove('hide');
+  } else if (q.type === 'text'){
+    area.innerHTML = '<label>Your answer</label><textarea id="freeIn" maxlength="280" placeholder="Type your response…"></textarea>';
+    submit.classList.remove('hide');
+  } else if (q.type === 'rating'){
+    let btns=''; for(let i=1;i<=(q.scaleMax||5);i++) btns+=`<button data-v="${i}" onclick="pick('${i}',this)">${i}</button>`;
+    area.innerHTML = `<div class="scale">${btns}</div><div class="muted" style="text-align:center">1 = low · ${q.scaleMax||5} = high</div>`;
+  }
+  $('#qStep').classList.remove('hide');
+}
+
+function pick(v, el){
+  selected = v;
+  const parent = el.parentElement;
+  parent.querySelectorAll('button').forEach(b=>b.classList.remove('sel'));
+  el.classList.add('sel');
+  // multiple choice & rating submit immediately
+  submit();
+}
+
+async function submit(){
+  let value = selected;
+  const free = $('#freeIn');
+  if (free) value = free.value.trim();
+  if (!value){ toast('Please enter an answer'); return; }
+  try {
+    await fetch('/api/respond', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ value, name: me.name, staffId: me.staffId })});
+    answeredFor = activeQ.id; localStorage.setItem('pp_answered', answeredFor);
+    hideSteps(); $('#doneStep').classList.remove('hide');
+  } catch(e){ toast('Could not submit — try again'); }
+}
+
+function reAnswer(){ answeredFor=''; localStorage.removeItem('pp_answered'); showCurrent(); }
+
+const socket = io();
+socket.on('state-changed', ()=>{ answeredFor=''; localStorage.removeItem('pp_answered'); if(!$('#nameStep').classList.contains('hide')){loadActive();return;} showCurrent(); });
+init();
+</script>
+</body>
+</html>
