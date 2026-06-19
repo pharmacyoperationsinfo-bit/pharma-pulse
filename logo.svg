@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Pharma Pulse logo">
+  <defs>
+    <linearGradient id="ppg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a6dc4"/>
+      <stop offset="55%" stop-color="#1690a6"/>
+      <stop offset="100%" stop-color="#16a394"/>
+    </linearGradient>
+    <linearGradient id="ppShine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="48%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#ppg)"/>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#ppShine)"/>
+  <!-- heartbeat pulse flowing into the cross node -->
+  <path d="M8 35 H18 L22 26 L27.5 45 L32.5 30 L35.5 35 H41"
+        fill="none" stroke="#ffffff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- pharmacy cross node -->
+  <circle cx="46.5" cy="35" r="9.6" fill="#ffffff"/>
+  <rect x="44.5" y="29.6" width="4" height="10.8" rx="1.5" fill="url(#ppg)"/>
+  <rect x="41.1" y="33" width="10.8" height="4" rx="1.5" fill="url(#ppg)"/>
+</svg>

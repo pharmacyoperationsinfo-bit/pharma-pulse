@@ -4,11 +4,13 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Join · Pharma Pulse</title>
+<link rel="icon" type="image/svg+xml" href="/logo.svg" />
 <link rel="stylesheet" href="/style.css" />
 <style>
   body { background: var(--bg); }
   .form-wrap { max-width: 480px; margin: 0 auto; padding: 22px 18px 60px; }
   .brand { text-align:center; padding: 22px 0 10px; }
+  .brand-mark { width:56px; height:56px; display:block; margin:0 auto 12px; }
   .brand .logo { display:inline-block; background: linear-gradient(100deg,var(--blue),var(--teal)); color:#fff; padding:8px 16px; border-radius:24px; font-weight:700; }
   .opt-btn { width:100%; text-align:left; background:#fff; color:var(--ink); border:2px solid var(--line); padding:16px; margin-bottom:10px; font-size:16px; border-radius:12px; }
   .opt-btn.sel { border-color: var(--teal); background:#effaf8; }
@@ -34,7 +36,10 @@
 </style>
 </head>
 <body>
-<div class="brand"><span class="logo" id="brand">Operations Pharmacy</span></div>
+<div class="brand">
+  <img src="/logo.svg" alt="Pharma Pulse" class="brand-mark" />
+  <span class="logo" id="brand">Operations Pharmacy</span>
+</div>
 <div class="form-wrap">
 
   <!-- name -->

@@ -4,12 +4,14 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Admin · Pharma Pulse</title>
+<link rel="icon" type="image/svg+xml" href="/logo.svg" />
 <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
 
 <!-- ============ LOGIN ============ -->
 <div id="login" class="panel center-card">
+  <div style="text-align:center; margin-bottom:10px;"><img src="/logo.svg" alt="Pharma Pulse" style="width:64px; height:64px;" /></div>
   <h2>Admin sign in</h2>
   <p class="muted">Enter the admin password to manage training questions.</p>
   <label>Password</label>
@@ -21,7 +23,10 @@
 <!-- ============ APP ============ -->
 <div id="app" class="hide">
   <div class="topbar"><div class="wrap">
-    <div><h1>Pharma Pulse — Admin</h1><div class="sub" id="sessTitle"></div></div>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <img src="/logo.svg" alt="" style="width:38px; height:38px; border-radius:10px;" />
+      <div><h1>Pharma Pulse — Admin</h1><div class="sub" id="sessTitle"></div></div>
+    </div>
     <button class="ghost sm" onclick="logout()">Sign out</button>
   </div></div>
 
