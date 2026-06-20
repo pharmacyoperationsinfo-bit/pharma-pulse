@@ -73,7 +73,8 @@
   /* ---------- WORD BUBBLES ---------- */
   .bubbles { position:absolute; inset:0; overflow:hidden; }
   .bubble { position:absolute; border-radius:50%; display:flex; align-items:center; justify-content:center; text-align:center; color:#fff; font-weight:800;
-    padding:10px; box-shadow:0 10px 30px rgba(0,0,0,.18); animation:pop .55s cubic-bezier(.2,1.4,.4,1); }
+    padding:8px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.18); animation:pop .55s cubic-bezier(.2,1.4,.4,1); }
+  .bubble .bw { width:100%; line-height:1.08; word-break:break-word; overflow-wrap:anywhere; hyphens:auto; }
   @keyframes pop { from{transform:scale(.2); opacity:0} to{transform:scale(1); opacity:1} }
   @keyframes floaty { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
 
@@ -279,6 +280,20 @@ function renderMC(canvas,res){
   });
 }
 
+// Shrink a bubble's text until it fits inside the circle (no overflow).
+function fitBubble(b, size){
+  const inner = b.querySelector('.bw');
+  if(!inner) return;
+  const avail = size * 0.72;            // inscribed square of the circle
+  inner.style.maxWidth = avail + 'px';
+  let fs = Math.min(parseFloat(b.style.fontSize) || size*0.21, size*0.21);
+  b.style.fontSize = fs + 'px';
+  let guard = 0;
+  while(inner.scrollHeight > avail && fs > 7 && guard++ < 80){
+    fs -= 1; b.style.fontSize = fs + 'px';
+  }
+}
+
 // Word cloud — keep existing bubbles in place; only pop in new words, grow existing.
 function renderWords(canvas,res){
   const layer = ensure(canvas,'bubbles');
@@ -293,7 +308,8 @@ function renderWords(canvas,res){
   const seen = new Set();
   words.forEach((w,i)=>{
     const key = w.text.toLowerCase(); seen.add(key);
-    const size = 70 + (w.count/max)*Math.min(W,H)*0.28;
+    const lenBoost = Math.min(w.text.length, 140) * 1.5;   // longer answers get bigger bubbles (capped)
+    const size = Math.min(Math.min(W,H)*0.62, 70 + (w.count/max)*Math.min(W,H)*0.28 + lenBoost);
     const fs = Math.max(14,size*0.21);
     const inner = `${esc(w.text)}${w.count>1?`<div style="font-size:.65em;opacity:.85">×${w.count}</div>`:''}`;
     let pos = layer._pos[key];
@@ -306,10 +322,12 @@ function renderWords(canvas,res){
       b.style.cssText=`left:${x}px;top:${y}px;width:${size}px;height:${size}px;font-size:${fs}px;background:linear-gradient(135deg,${pal(i)},${pal(i+3)});animation:pop .55s cubic-bezier(.2,1.4,.4,1), floaty ${3+Math.random()*2}s ease-in-out ${Math.random()}s infinite;transition:width .5s,height .5s,font-size .5s;`;
       b.innerHTML=`<div class="bw">${inner}</div>`;
       layer._els[key]=b; layer.appendChild(b);
+      fitBubble(b, size);
     } else {
       const b=layer._els[key];
       b.style.width=size+'px'; b.style.height=size+'px'; b.style.fontSize=fs+'px';
       b.querySelector('.bw').innerHTML=inner;
+      fitBubble(b, size);
     }
   });
   Object.keys(layer._els).forEach(k=>{ if(!seen.has(k)){ layer._els[k].remove(); delete layer._els[k]; delete layer._pos[k]; } });
