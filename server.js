@@ -217,10 +217,10 @@ app.post('/api/admin/questions', requireAdmin, (req, res) => {
   const { type, text, options, scaleMax } = req.body || {};
   if (!['mc', 'words', 'text', 'rating'].includes(type))
     return res.status(400).json({ error: 'Bad type' });
-  const q = { id: id(), type, text: String(text || '').slice(0, 300) };
+  const q = { id: id(), type, text: String(text || '').slice(0, 5000) };
   if (type === 'mc') {
     q.options = (options || []).filter(t => String(t).trim())
-      .map(t => ({ id: id(), text: String(t).slice(0, 160) }));
+      .map(t => ({ id: id(), text: String(t).slice(0, 500) }));
     if (q.options.length < 2) return res.status(400).json({ error: 'Need at least 2 options' });
   }
   if (type === 'rating') q.scaleMax = Math.min(10, Math.max(2, parseInt(scaleMax, 10) || 5));
@@ -233,10 +233,10 @@ app.put('/api/admin/questions/:qid', requireAdmin, (req, res) => {
   const q = data.questions.find(x => x.id === req.params.qid);
   if (!q) return res.status(404).json({ error: 'Not found' });
   const { text, options, scaleMax } = req.body || {};
-  if (text !== undefined) q.text = String(text).slice(0, 300);
+  if (text !== undefined) q.text = String(text).slice(0, 5000);
   if (q.type === 'mc' && options) {
     q.options = options.filter(t => String(t).trim())
-      .map(t => ({ id: id(), text: String(t).slice(0, 160) }));
+      .map(t => ({ id: id(), text: String(t).slice(0, 500) }));
   }
   if (q.type === 'rating' && scaleMax) q.scaleMax = Math.min(10, Math.max(2, parseInt(scaleMax, 10) || 5));
   save(); io.emit('state-changed');
