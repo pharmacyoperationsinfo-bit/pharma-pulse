@@ -252,62 +252,106 @@ function render(q, res, fresh){
 
 function ensure(canvas, cls){ let el = canvas.querySelector('.'+cls); if(!el){ el=document.createElement('div'); el.className=cls+' dynamic'; canvas.appendChild(el); } return el; }
 
+// Multiple choice — build bars once, then update widths/labels in place (no re-render blink).
 function renderMC(canvas,res){
   const box = ensure(canvas,'mc-box');
   const total = res.total||0;
   const max = Math.max(1,...res.options.map(o=>o.count));
-  const topCount = Math.max(...res.options.map(o=>o.count));
-  box.innerHTML = res.options.map((o,i)=>{
+  const topCount = Math.max(0,...res.options.map(o=>o.count));
+  const sig = res.options.map(o=>o.id).join(',');
+  if(box._sig !== sig){
+    box._sig = sig;
+    box.innerHTML = res.options.map((o,i)=>`
+      <div class="bar-row" data-id="${o.id}">
+        <div class="bar-top"><span class="label">${esc(o.text)}</span><span class="pct"></span></div>
+        <div class="bar-track"><div class="bar-fill" style="background:linear-gradient(90deg,${pal(i)},${pal(i+1)})"></div></div>
+      </div>`).join('');
+  }
+  res.options.forEach((o,i)=>{
+    const row = box.querySelector('.bar-row[data-id="'+o.id+'"]'); if(!row) return;
     const pct = total ? Math.round(o.count/total*100) : 0;
-    const w = (o.count/max*100);
     const win = total>0 && o.count===topCount && o.count>0;
-    return `<div class="bar-row ${win?'winner':''}">
-      <div class="bar-top"><span class="label">${esc(o.text)}</span><span class="pct">${pct}% · ${o.count}</span></div>
-      <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:linear-gradient(90deg,${win?'#f5c45a':pal(i)},${pal(i+1)})"></div></div>
-    </div>`;
-  }).join('');
+    row.classList.toggle('winner', win);
+    row.querySelector('.pct').textContent = pct+'% · '+o.count;
+    const fill = row.querySelector('.bar-fill');
+    fill.style.width = (o.count/max*100)+'%';
+    fill.style.background = 'linear-gradient(90deg,'+(win?'#f5c45a':pal(i))+','+pal(i+1)+')';
+  });
 }
 
+// Word cloud — keep existing bubbles in place; only pop in new words, grow existing.
 function renderWords(canvas,res){
   const layer = ensure(canvas,'bubbles');
+  if(!layer._pos){ layer._pos={}; layer._els={}; }
   const words = (res.words||[]).slice(0,40);
   const max = Math.max(1,...words.map(w=>w.count));
   const W = layer.clientWidth || canvas.clientWidth;
   const H = layer.clientHeight || canvas.clientHeight || 500;
-  const placed = [];
-  layer.innerHTML = '';
-  if(!words.length){ layer.innerHTML='<div class="idle"><div class="small">Waiting for the first answer…</div></div>'; return; }
+  if(!words.length){ layer.innerHTML='<div class="idle"><div class="small">Waiting for the first answer…</div></div>'; layer._pos={}; layer._els={}; return; }
+  if(layer.querySelector('.idle')){ layer.innerHTML=''; layer._pos={}; layer._els={}; }
+  const placed = Object.values(layer._pos);
+  const seen = new Set();
   words.forEach((w,i)=>{
+    const key = w.text.toLowerCase(); seen.add(key);
     const size = 70 + (w.count/max)*Math.min(W,H)*0.28;
-    let x,y,tries=0,ok=false;
-    while(tries++<60){ x=Math.random()*(W-size); y=Math.random()*(H-size);
-      ok=placed.every(p=>Math.hypot((x+size/2)-(p.x+p.s/2),(y+size/2)-(p.y+p.s/2))>(size+p.s)/2*0.9); if(ok)break; }
-    placed.push({x,y,s:size});
-    const b=document.createElement('div'); b.className='bubble';
-    const fs=Math.max(14,size*0.21);
-    b.style.cssText=`left:${x}px;top:${y}px;width:${size}px;height:${size}px;font-size:${fs}px;background:linear-gradient(135deg,${pal(i)},${pal(i+3)});animation:pop .55s cubic-bezier(.2,1.4,.4,1), floaty ${3+Math.random()*2}s ease-in-out ${Math.random()}s infinite;`;
-    b.innerHTML=`<div>${esc(w.text)}${w.count>1?`<div style="font-size:.65em;opacity:.85">×${w.count}</div>`:''}</div>`;
-    layer.appendChild(b);
+    const fs = Math.max(14,size*0.21);
+    const inner = `${esc(w.text)}${w.count>1?`<div style="font-size:.65em;opacity:.85">×${w.count}</div>`:''}`;
+    let pos = layer._pos[key];
+    if(!pos){
+      let x,y,tries=0,ok=false;
+      while(tries++<60){ x=Math.random()*(W-size); y=Math.random()*(H-size);
+        ok=placed.every(p=>Math.hypot((x+size/2)-(p.x+p.s/2),(y+size/2)-(p.y+p.s/2))>(size+p.s)/2*0.9); if(ok)break; }
+      pos={x,y,s:size}; layer._pos[key]=pos; placed.push(pos);
+      const b=document.createElement('div'); b.className='bubble';
+      b.style.cssText=`left:${x}px;top:${y}px;width:${size}px;height:${size}px;font-size:${fs}px;background:linear-gradient(135deg,${pal(i)},${pal(i+3)});animation:pop .55s cubic-bezier(.2,1.4,.4,1), floaty ${3+Math.random()*2}s ease-in-out ${Math.random()}s infinite;transition:width .5s,height .5s,font-size .5s;`;
+      b.innerHTML=`<div class="bw">${inner}</div>`;
+      layer._els[key]=b; layer.appendChild(b);
+    } else {
+      const b=layer._els[key];
+      b.style.width=size+'px'; b.style.height=size+'px'; b.style.fontSize=fs+'px';
+      b.querySelector('.bw').innerHTML=inner;
+    }
+  });
+  Object.keys(layer._els).forEach(k=>{ if(!seen.has(k)){ layer._els[k].remove(); delete layer._els[k]; delete layer._pos[k]; } });
+}
+
+// Open text — only prepend NEW cards; existing cards stay untouched (no blink).
+function renderText(canvas,res){
+  const feed = ensure(canvas,'feed');
+  if(!feed._seen) feed._seen = new Set();
+  const entries = res.entries||[];                 // newest first
+  if(!entries.length){ feed.innerHTML='<div class="small" style="color:var(--stage-muted)">Waiting for the first answer…</div>'; feed._seen=new Set(); return; }
+  if(entries.length < feed._seen.size){ feed.innerHTML=''; feed._seen=new Set(); }   // responses cleared
+  const ph = feed.querySelector('.small'); if(ph) ph.remove();
+  const keyOf = e => e.ts+'|'+e.name+'|'+e.value;
+  entries.filter(e=>!feed._seen.has(keyOf(e))).reverse().forEach(e=>{
+    feed._seen.add(keyOf(e));
+    const card=document.createElement('div'); card.className='feed-card';
+    card.innerHTML=`<div class="who">💬 ${esc(e.name)}</div><div class="what">${esc(e.value)}</div>`;
+    feed.insertBefore(card, feed.firstChild);
   });
 }
 
-function renderText(canvas,res){
-  const feed = ensure(canvas,'feed');
-  const entries = res.entries||[];
-  feed.innerHTML = entries.map(e=>`<div class="feed-card"><div class="who">💬 ${esc(e.name)}</div><div class="what">${esc(e.value)}</div></div>`).join('')
-    || '<div class="small" style="color:var(--stage-muted)">Waiting for the first answer…</div>';
-}
-
+// Rating — build once, then update numbers/bar heights in place.
 function renderRating(canvas,res){
   const wrap = ensure(canvas,'rating-wrap');
   const max = res.max||5; const dist = res.distribution||{}; const avg = res.average||0;
+  if(wrap._max !== max){
+    wrap._max = max;
+    let cols=''; for(let i=1;i<=max;i++) cols+=`<div class="dist-col"><div class="dist-num cnt" data-i="${i}">0</div><div class="dist-bar" data-i="${i}" style="height:5px"></div><div class="dist-num">${i}</div></div>`;
+    wrap.innerHTML = `<div class="avg" id="rAvg">0</div><div class="stars" id="rStars" style="color:#f5c45a"></div><div class="avg-sub" id="rSub"></div><div class="dist">${cols}</div>`;
+  }
   const maxCount = Math.max(1,...Object.values(dist));
   const full = Math.round(avg);
   let stars=''; for(let i=1;i<=max;i++) stars += i<=full ? '★' : '☆';
-  let cols=''; for(let i=1;i<=max;i++){ const h=(dist[i]||0)/maxCount*100;
-    cols += `<div class="dist-col"><div class="dist-num">${dist[i]||0}</div><div class="dist-bar" style="height:${h}%"></div><div class="dist-num">${i}</div></div>`; }
-  wrap.innerHTML = `<div class="avg">${avg}</div><div class="stars" style="color:#f5c45a">${stars}</div>
-    <div class="avg-sub">average of ${res.total||0} rating${res.total===1?'':'s'} · out of ${max}</div><div class="dist">${cols}</div>`;
+  wrap.querySelector('#rAvg').textContent = avg;
+  wrap.querySelector('#rStars').textContent = stars;
+  wrap.querySelector('#rSub').textContent = 'average of '+(res.total||0)+' rating'+(res.total===1?'':'s')+' · out of '+max;
+  for(let i=1;i<=max;i++){
+    const bar=wrap.querySelector('.dist-bar[data-i="'+i+'"]'); const cnt=wrap.querySelector('.cnt[data-i="'+i+'"]');
+    if(bar) bar.style.height = ((dist[i]||0)/maxCount*100)+'%';
+    if(cnt) cnt.textContent = dist[i]||0;
+  }
 }
 
 /* ----- confetti (self-contained canvas) ----- */
